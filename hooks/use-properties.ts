@@ -8,11 +8,19 @@ export function useProperties(initialFilters?: PropertyFilters) {
   const [properties, setPropertiesState] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 1. მონაცემების წამოღება ბაზიდან
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/properties");
+
+      const response = await fetch("/api/properties", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        console.error(`მოთხოვნა ჩავარდა მისამართზე: ${response.url}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       setPropertiesState(data);
     } catch (error) {
@@ -32,16 +40,15 @@ export function useProperties(initialFilters?: PropertyFilters) {
     }
   }, [fetchProperties, properties.length]);
 
-  // 2. ფილტრაციის ლოგიკა
+
   const filteredProperties = useMemo(() => {
-    return properties.filter((property) => {
+    return properties.filter((property: any) => {
       if (
         filters.category &&
         filters.category !== "all" &&
         property.category !== filters.category
       )
         return false;
-
       if (
         filters.propertyType &&
         filters.propertyType !== "all" &&
@@ -49,28 +56,29 @@ export function useProperties(initialFilters?: PropertyFilters) {
       )
         return false;
 
-      // ფასის შემოწმება
-      const price = property.price?.amount || 0;
+      const propertyCity = property.city || property.location?.city || "";
+      if (filters.city && filters.city !== "all") {
+        if (propertyCity.toLowerCase() !== filters.city.toLowerCase())
+          return false;
+      }
+      else if (filters.location) {
+        const searchTerm = filters.location.toLowerCase();
+        const propertyAddress =
+          property.address || property.location?.address || "";
+        const match =
+          propertyCity.toLowerCase().includes(searchTerm) ||
+          propertyAddress.toLowerCase().includes(searchTerm);
+        if (!match) return false;
+      }
+
+      const price = property.price?.amount || property.price || 0;
       if (filters.minPrice && price < filters.minPrice) return false;
       if (filters.maxPrice && price > filters.maxPrice) return false;
-
-      // Bedrooms
-      if (filters.minBedrooms && property.specs.bedrooms < filters.minBedrooms)
-        return false;
-
-      // Location search
-      if (filters.location) {
-        const searchTerm = filters.location.toLowerCase();
-        const cityMatch = property.location.city.toLowerCase().includes(searchTerm);
-        const addressMatch = property.location.address.toLowerCase().includes(searchTerm);
-        if (!cityMatch && !addressMatch) return false;
-      }
 
       return true;
     });
   }, [properties, filters]);
 
-  // 3. ადმინის ფუნქციები
   const addProperty = useCallback(
     async (propertyData: Partial<Property>) => {
       const res = await fetch("/api/properties", {
@@ -79,7 +87,7 @@ export function useProperties(initialFilters?: PropertyFilters) {
         body: JSON.stringify(propertyData),
       });
       if (res.ok) {
-        await fetchProperties(); 
+        await fetchProperties();
       }
     },
     [fetchProperties],
@@ -102,7 +110,7 @@ export function useProperties(initialFilters?: PropertyFilters) {
     () => properties.filter((p) => p.featured),
     [properties],
   );
-  
+
   const latestProperties = useMemo(() => properties.slice(0, 6), [properties]);
 
   const getPropertyById = useCallback(
@@ -113,13 +121,13 @@ export function useProperties(initialFilters?: PropertyFilters) {
   );
 
   return {
-    properties: filteredProperties, 
-    allProperties: properties,      
+    properties: filteredProperties,
+    allProperties: properties,
     featuredProperties,
     latestProperties,
     loading,
     filters,
-    setProperties, 
+    setProperties,
     getPropertyById,
     updateFilters,
     resetFilters,
