@@ -56,6 +56,7 @@ export interface PropertyFilters {
   category?: "sale" | "rent" | "all";
   propertyType?: Property["propertyType"] | "all";
   minPrice?: number;
+  city?: string;
   maxPrice?: number;
   minBedrooms?: number;
   maxBedrooms?: number;
