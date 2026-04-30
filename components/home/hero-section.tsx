@@ -14,6 +14,22 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from "@/context/language-context";
 
+const locationMap: Record<string, string> = {
+  თბილისი: "tbilisi",
+  ბათუმი: "batumi",
+  ქუთაისი: "kutaisi",
+  რუსთავი: "rustavi",
+  მცხეთა: "mtskheta",
+  ქობულეთი: "kobuleti",
+  ბორჯომი: "borjomi",
+  ბაკურიანი: "bakuriani",
+  გუდაური: "gudauri",
+  თელავი: "telavi",
+  სიღნაღი: "sighnaghi",
+  ზუგდიდი: "zugdidi",
+  ფოთი: "poti",
+};
+
 export function HeroSection() {
   const router = useRouter();
   const { t } = useLanguage();
@@ -23,10 +39,21 @@ export function HeroSection() {
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    if (location) params.set("location", location);
+
+    if (location) {
+      const trimmedLocation = location.trim();
+
+      const locationValue =
+        locationMap[trimmedLocation] || trimmedLocation.toLowerCase();
+
+      params.set("location", locationValue);
+    }
+
     if (priceRange) params.set("price", priceRange);
-    if (propertyType && propertyType !== "all")
+
+    if (propertyType && propertyType !== "all") {
       params.set("type", propertyType);
+    }
 
     router.push(`/properties?${params.toString()}`);
   };
@@ -58,22 +85,23 @@ export function HeroSection() {
 
         {/* Floating Search Bar with Glassmorphism */}
         <div className="w-full max-w-5xl group">
-          <div className="bg-white/10 backdrop-blur-md p-2 rounded-[2.5rem] shadow-2xl border border-white/20 transition-all duration-500 hover:bg-white/15">
+          <div className="bg-white/10 backdrop-blur-md p-2 rounded-[2.5rem] shadow-2xl border border-white/20">
             <div className="bg-white rounded-[2.2rem] p-3 md:p-4 grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
               {/* Location Input */}
-              <div className="relative flex items-center px-4 border-r border-border/50 last:border-0 h-14 group/input">
-                <MapPin className="h-5 w-5 text-primary shrink-0 group-hover/input:scale-110 transition-transform" />
+              <div className="relative flex items-center px-4 border-r border-border/50 h-14 group/input">
+                <MapPin className="h-5 w-5 text-primary shrink-0" />
                 <Input
                   type="text"
                   placeholder={t("heroLocation")}
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="border-0 focus-visible:ring-0 text-base placeholder:text-muted-foreground/60 shadow-none h-full w-full"
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()} // Enter-ზე ძებნა
+                  className="border-0 focus-visible:ring-0 text-base shadow-none h-full w-full"
                 />
               </div>
 
               {/* Price Range Select */}
-              <div className="relative flex items-center px-4 border-r border-border/50 last:border-0 h-14">
+              <div className="relative flex items-center px-4 border-r border-border/50 h-14">
                 <DollarSign className="h-5 w-5 text-primary shrink-0" />
                 <Select value={priceRange} onValueChange={setPriceRange}>
                   <SelectTrigger className="border-0 focus:ring-0 text-base shadow-none h-full bg-transparent">
@@ -101,7 +129,7 @@ export function HeroSection() {
               </div>
 
               {/* Property Type Select */}
-              <div className="relative flex items-center px-4 border-r border-border/50 last:border-0 h-14">
+              <div className="relative flex items-center px-4 border-r border-border/50 h-14">
                 <Home className="h-5 w-5 text-primary shrink-0" />
                 <Select value={propertyType} onValueChange={setPropertyType}>
                   <SelectTrigger className="border-0 focus:ring-0 text-base shadow-none h-full bg-transparent">
@@ -123,10 +151,9 @@ export function HeroSection() {
                 </Select>
               </div>
 
-              {/* Enhanced Search Button */}
               <Button
                 onClick={handleSearch}
-                className="h-14 w-full rounded-[1.8rem] bg-primary text-primary-foreground hover:bg-primary/90 text-lg font-bold shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-2"
+                className="h-14 w-full rounded-[1.8rem] bg-primary text-primary-foreground hover:bg-primary/90 text-lg font-bold shadow-lg transition-all flex items-center justify-center gap-2"
               >
                 <Search className="h-5 w-5 stroke-[3]" />
                 {t("heroSearch")}

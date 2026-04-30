@@ -5,7 +5,7 @@ import { Property, PropertyFilters } from "@/types/property";
 
 export function useProperties(initialFilters?: PropertyFilters) {
   const [filters, setFilters] = useState<PropertyFilters>(initialFilters || {});
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [properties, setPropertiesState] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 1. მონაცემების წამოღება ბაზიდან
@@ -14,7 +14,7 @@ export function useProperties(initialFilters?: PropertyFilters) {
       setLoading(true);
       const response = await fetch("/api/properties");
       const data = await response.json();
-      setProperties(data);
+      setPropertiesState(data);
     } catch (error) {
       console.error("Error fetching properties:", error);
     } finally {
@@ -22,9 +22,15 @@ export function useProperties(initialFilters?: PropertyFilters) {
     }
   }, []);
 
+  const setProperties = useCallback((newProperties: Property[]) => {
+    setPropertiesState(newProperties);
+  }, []);
+
   useEffect(() => {
-    fetchProperties();
-  }, [fetchProperties]);
+    if (properties.length === 0) {
+      fetchProperties();
+    }
+  }, [fetchProperties, properties.length]);
 
   // 2. ფილტრაციის ლოგიკა
   const filteredProperties = useMemo(() => {
@@ -43,7 +49,8 @@ export function useProperties(initialFilters?: PropertyFilters) {
       )
         return false;
 
-      const price = property.price.amount;
+      // ფასის შემოწმება
+      const price = property.price?.amount || 0;
       if (filters.minPrice && price < filters.minPrice) return false;
       if (filters.maxPrice && price > filters.maxPrice) return false;
 
@@ -54,18 +61,16 @@ export function useProperties(initialFilters?: PropertyFilters) {
       // Location search
       if (filters.location) {
         const searchTerm = filters.location.toLowerCase();
-        return (
-          property.location.city.toLowerCase().includes(searchTerm) ||
-          property.location.address.toLowerCase().includes(searchTerm)
-        );
+        const cityMatch = property.location.city.toLowerCase().includes(searchTerm);
+        const addressMatch = property.location.address.toLowerCase().includes(searchTerm);
+        if (!cityMatch && !addressMatch) return false;
       }
 
       return true;
     });
   }, [properties, filters]);
 
-  // 3. ადმინის ფუნქციები (ბაზასთან დაკავშირებული)
-
+  // 3. ადმინის ფუნქციები
   const addProperty = useCallback(
     async (propertyData: Partial<Property>) => {
       const res = await fetch("/api/properties", {
@@ -83,7 +88,7 @@ export function useProperties(initialFilters?: PropertyFilters) {
   const deleteProperty = useCallback(async (id: string) => {
     const res = await fetch(`/api/properties/${id}`, { method: "DELETE" });
     if (res.ok) {
-      setProperties((prev) => prev.filter((p) => p._id !== id));
+      setPropertiesState((prev) => prev.filter((p) => p._id !== id));
     }
   }, []);
 
@@ -97,6 +102,7 @@ export function useProperties(initialFilters?: PropertyFilters) {
     () => properties.filter((p) => p.featured),
     [properties],
   );
+  
   const latestProperties = useMemo(() => properties.slice(0, 6), [properties]);
 
   const getPropertyById = useCallback(
@@ -107,12 +113,13 @@ export function useProperties(initialFilters?: PropertyFilters) {
   );
 
   return {
-    properties: filteredProperties,
-    allProperties: properties,
+    properties: filteredProperties, 
+    allProperties: properties,      
     featuredProperties,
     latestProperties,
     loading,
     filters,
+    setProperties, 
     getPropertyById,
     updateFilters,
     resetFilters,
